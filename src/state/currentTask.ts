@@ -252,10 +252,10 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             id: actionId.toString(),
             attributes: {
               durationms: duration,
-              action: "actiontest",
-              thought: "thoughtest"
-              //action: query.parsedResponse.action,
-              //thought: query.parsedResponse.thought
+              // action: "actiontest",
+              // thought: "thoughtest"
+              action: action.parsedAction,
+              thought: action.thought
             }
             
           }
