@@ -1,8 +1,9 @@
+import { NEW_RELIC_KEY } from '../constants';
+
 interface SpanAttributes {
-  [key: string]: string | number | boolean | undefined;
-  durationms: number;
-  name: string;
-  parentid?: string;
+  durationms: number | undefined;
+  action: string;
+  thought: string;
 }
 
 interface Span {
@@ -17,7 +18,7 @@ export const sendSpanData = async (
   serviceName: string,
   host: string
 ) => {
-  const apiKey = 'YOUR_LICENSE_KEY';
+  const apiKey = NEW_RELIC_KEY;
   const url = 'https://trace-api.newrelic.com/trace/v1';
   const data = [
     {

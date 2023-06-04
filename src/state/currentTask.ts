@@ -18,6 +18,8 @@ import { MyStateCreator } from './store';
 import { track, setSessionId } from '@amplitude/analytics-browser';
 import { v4 as uuidv4 } from 'uuid';
 import { IWaterfallEvent, useEventStore } from './store';
+import { sendSpanData } from '../helpers/newRelic'
+
 
 export type TaskHistoryEntry = {
   prompt: string;
@@ -66,6 +68,7 @@ let internalTrack = function(eventInput: string, eventProperties?: Record<string
         }
       ],
     });
+    return duration
   };
   
   const event: IWaterfallEvent = {
@@ -138,7 +141,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
         const session = Date.now();
         const startSessionProperties = {
           instructions,
-          site: window.location.toString(),
+          site: activeTab.url?.split('/')[2]
         };
         internalTrack("StartTask", startSessionProperties, session);
         let query = {};
@@ -241,9 +244,23 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             ...query,
             parsedResponse: action,
           }
-          internalTrack("PerformAction", performActionProperties, session);
-
+          let duration = internalTrack("PerformAction", performActionProperties, session);
           setActionStatus('performing-action');
+          console.log(query)
+          let spanObj = {
+            traceid: session.toString(),
+            id: actionId.toString(),
+            attributes: {
+              durationms: duration,
+              action: "actiontest",
+              thought: "thoughtest"
+              //action: query.parsedResponse.action,
+              //thought: query.parsedResponse.thought
+            }
+            
+          }
+          sendSpanData([spanObj], startSessionProperties.instructions, startSessionProperties.site ? startSessionProperties.site : "None")
+          
 
           set((state) => {
             state.currentTask.history.push({

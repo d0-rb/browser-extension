@@ -6,6 +6,8 @@ var webpack = require('webpack'),
   HtmlWebpackPlugin = require('html-webpack-plugin'),
   TerserPlugin = require('terser-webpack-plugin'),
   Dotenv = require('dotenv-webpack');
+//const dotenv = require('dotenv').config({path: __dirname + '/env'})
+
 var { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 const ASSET_PATH = process.env.ASSET_PATH || '/';
@@ -105,6 +107,9 @@ var options = {
       .concat(['.js', '.jsx', '.ts', '.tsx', '.css']),
   },
   plugins: [
+    // new webpack.DefinePlugin({
+    //   'process.env.NODE_ENV' : JSON.stringify('production')
+    // }),
     new CleanWebpackPlugin({ verbose: false }),
     new webpack.ProgressPlugin(),
     // expose and write the allowed env vars on the compiled bundle

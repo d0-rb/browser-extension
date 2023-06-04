@@ -6,8 +6,9 @@ import SetAPIKey from './SetAPIKey';
 import TaskUI from './TaskUI';
 import logo from '../assets/img/icon-128.png';
 import * as amplitude from '@amplitude/analytics-browser';
+import { AMPLITUDE_KEY } from '../constants';
 
-amplitude.init("ea8b57294ba085baafd55cc783db1d4a");
+amplitude.init(AMPLITUDE_KEY);
 
 const App = () => {
   const openAIKey = useAppState((state) => state.settings.openAIKey);
