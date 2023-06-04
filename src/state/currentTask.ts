@@ -17,6 +17,7 @@ import { sleep, truthyFilter } from '../helpers/utils';
 import { MyStateCreator } from './store';
 import { track, setSessionId } from '@amplitude/analytics-browser';
 import { v4 as uuidv4 } from 'uuid';
+import { Event } from './waterfall';
 
 export type TaskHistoryEntry = {
   prompt: string;
@@ -44,35 +45,21 @@ export type CurrentTaskSlice = {
   };
 };
 
-export type Event = {
-  eventInput: string,
-  eventProperties?: Record<string, any> | undefined,
-  start: number,
-  elapsed: number | null,
-}
-
 let time: null | number = null;
 export const events: Array<Event> = [];
-let internalTrack = function(eventInput: string, eventProperties?: Record<string, any> | undefined, session?: number, eventOptions?: import("@amplitude/analytics-types").EventOptions | undefined) {
-  if (time == null) {
-    time = performance.now();
-  } else {
-    const newTime = performance.now();
-    const duration = newTime - time;
-    time = newTime;
-    events[events.length - 1].elapsed = duration;
-  };
-  
+let internalTrack = function(state: { waterfall: { isGrowing: boolean, setIsGrowing: (isGrowing: boolean) => void, events: Array<Event>, addEvent: (event: Event, newTask: boolean) => void }}, eventInput: string, eventProperties?: Record<string, any> | undefined, session?: number, eventOptions?: import("@amplitude/analytics-types").EventOptions | undefined) {
   const event: Event = {
     eventInput,
     eventProperties,
-    start: time,
-    elapsed: null,
   };
-  events.push(event);
+  const newTask = eventInput === 'StartTask';
   if (session) {
     setSessionId(session);
   }
+  if (state.waterfall.events.length === 0) {
+    state.waterfall.setIsGrowing(true);
+  }
+  state.waterfall.addEvent(event, newTask);
   track(eventInput, eventProperties);
   fetch(`http://127.0.0.1:8000/${eventInput}`, {
     method: 'POST',
@@ -100,6 +87,13 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
           state.currentTask.actionStatus = status;
         });
       };
+      
+      const state = useAppState((state) => ({
+        isGrowing: state.waterfall.isGrowing,
+        setIsGrowing: state.waterfall.actions.setIsGrowing,
+        events: state.waterfall.events,
+        addEvent: state.waterfall.actions.addEvent,
+      }));
 
       const instructions = get().ui.instructions;
 
@@ -131,7 +125,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
           instructions,
           site: window.location.toString(),
         };
-        internalTrack("StartTask", startSessionProperties, session);
+        internalTrack(state, "StartTask", startSessionProperties, session);
         // eslint-disable-next-line no-constant-condition
         while (true) {
           const actionId = uuidv4();
@@ -140,7 +134,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             const cancelProperties = {
               actionId,
             };
-            internalTrack("CancelTask", cancelProperties, session);
+            internalTrack(state, "CancelTask", cancelProperties, session);
             break;
           }
 
@@ -148,7 +142,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             actionId,
             // history: JSON.stringify(get().currentTask.history),
           };
-          internalTrack("ProcessDOM", processDOMProperties, session);
+          internalTrack(state, "ProcessDOM", processDOMProperties, session);
 
           setActionStatus('pulling-dom');
           const pageDOM = await getSimplifiedDom();
@@ -161,7 +155,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
               actionId,
               error: 'Could not get DOM',
             };
-            internalTrack("ActionError", errorProperties, session);
+            internalTrack(state, "ActionError", errorProperties, session);
 
             break;
           }
@@ -171,7 +165,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             const cancelProperties = {
               actionId,
             };
-            internalTrack("CancelTask", cancelProperties, session);
+            internalTrack(state, "CancelTask", cancelProperties, session);
 
             break;
           }
@@ -187,7 +181,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             // history: JSON.stringify(get().currentTask.history),
             // dom: pageDOM,
           };
-          internalTrack("DetermineAction", determineActionProperties, session);
+          internalTrack(state, "DetermineAction", determineActionProperties, session);
 
           setActionStatus('performing-query');
 
@@ -210,7 +204,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
               actionId,
               error: 'Could not determine next action',
             };
-            internalTrack("ActionError", errorProperties, session);
+            internalTrack(state, "ActionError", errorProperties, session);
 
             break;
           }
@@ -219,7 +213,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             const cancelProperties = {
               actionId,
             };
-            internalTrack("CancelTask", cancelProperties, session);
+            internalTrack(state, "CancelTask", cancelProperties, session);
 
             break;
           }
@@ -231,7 +225,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             ...query,
             parsedResponse: action,
           }
-          internalTrack("PerformAction", performActionProperties, session);
+          internalTrack(state, "PerformAction", performActionProperties, session);
 
           setActionStatus('performing-action');
 
@@ -250,7 +244,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
               actionId,
               error: action.error,
             };
-            internalTrack("ActionError", errorProperties, session);
+            internalTrack(state, "ActionError", errorProperties, session);
 
             break;
           }
@@ -264,20 +258,20 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
                 actionId,
                 error: 'No action returned from model',
               };
-              internalTrack("ActionError", errorProperties, session);
+              internalTrack(state, "ActionError", errorProperties, session);
             } else if (action.parsedAction.name === 'finish') {
               const successProperties = {
                 actionId,
                 parsedResponse: action,
               };
-              internalTrack("ActionSuccess", successProperties, session);
+              internalTrack(state, "ActionSuccess", successProperties, session);
             } else if (action.parsedAction.name === 'fail') {
               const errorProperties = {
                 actionId,
                 error: 'Model returned fail action',
                 parsedResponse: action,
               };
-              internalTrack("ActionError", errorProperties, session);
+              internalTrack(state, "ActionError", errorProperties, session);
             }
             break;
           }
@@ -295,7 +289,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             const cancelProperties = {
               actionId,
             };
-            internalTrack("CancelTask", cancelProperties, session);
+            internalTrack(state, "CancelTask", cancelProperties, session);
 
             break;
           }
@@ -308,7 +302,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
               actionId,
               error: `Stopped after ${actionLimit} actions`,
             };
-            internalTrack("ActionError", errorProperties, session);
+            internalTrack(state, "ActionError", errorProperties, session);
             
             break;
           }
@@ -317,7 +311,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
             actionId,
             action: action?.parsedAction.name,
           }
-          internalTrack("FinishAction", finishActionProperties, session);
+          internalTrack(state,"FinishAction", finishActionProperties, session);
 
           setActionStatus('waiting');
           // sleep 2 seconds. This is pretty arbitrary; we should figure out a better way to determine when the page has settled.
@@ -329,7 +323,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
         
         const finishSessionProperties = {
         };
-        internalTrack("FinishTask", finishSessionProperties, session);
+        internalTrack(state, "FinishTask", finishSessionProperties, session);
       } catch (e: any) {
         onError(e.message);
         set((state) => {

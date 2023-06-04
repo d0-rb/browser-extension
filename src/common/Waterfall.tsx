@@ -1,4 +1,6 @@
 import React, { useEffect } from 'react';
+import { useAppState } from '../state/store';
+
 
 export interface IEvent {
   id: number;
@@ -13,6 +15,11 @@ export default function Waterfall() {
   const [isGrowing, setIsGrowing] = React.useState<boolean>(false);
   const [currentEventId, setCurrentEventId] = React.useState<number>(0);
   const [xOffset, setXOffset] = React.useState<number>(0);
+
+  const state = useAppState((state) => ({
+    events: state.waterfall.events,
+    isGrowing: state.waterfall.isGrowing,
+  }));
 
   const startEvent = () => {
     setEvents((events) => [

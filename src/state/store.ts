@@ -5,11 +5,13 @@ import { createJSONStorage, devtools, persist } from 'zustand/middleware';
 import { createCurrentTaskSlice, CurrentTaskSlice } from './currentTask';
 import { createUiSlice, UiSlice } from './ui';
 import { createSettingsSlice, SettingsSlice } from './settings';
+import { createWaterfallSlice, WaterfallSlice } from './waterfall';
 
 export type StoreType = {
   currentTask: CurrentTaskSlice;
   ui: UiSlice;
   settings: SettingsSlice;
+  waterfall: WaterfallSlice;
 };
 
 export type MyStateCreator<T> = StateCreator<
@@ -25,6 +27,7 @@ export const useAppState = create<StoreType>()(
       devtools((...a) => ({
         currentTask: createCurrentTaskSlice(...a),
         ui: createUiSlice(...a),
+        waterfall: createWaterfallSlice(...a),
         settings: createSettingsSlice(...a),
       }))
     ),
@@ -40,6 +43,10 @@ export const useAppState = create<StoreType>()(
           openAIKey: state.settings.openAIKey,
           selectedModel: state.settings.selectedModel,
         },
+        waterfall: {
+          events: state.waterfall.events,
+          isGrowing: state.waterfall.isGrowing,
+        }
       }),
       merge: (persistedState, currentState) =>
         merge(currentState, persistedState),
