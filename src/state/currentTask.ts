@@ -18,6 +18,7 @@ import { MyStateCreator } from './store';
 import { track, setSessionId } from '@amplitude/analytics-browser';
 import { v4 as uuidv4 } from 'uuid';
 import { Event } from './waterfall';
+import { useAppState } from '../state/store';
 
 export type TaskHistoryEntry = {
   prompt: string;
