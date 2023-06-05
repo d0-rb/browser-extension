@@ -362,7 +362,7 @@ export const createCurrentTaskSlice: MyStateCreator<CurrentTaskSlice> = (
 
           setActionStatus('waiting');
           // sleep 2 seconds. This is pretty arbitrary; we should figure out a better way to determine when the page has settled.
-          await sleep(2000);
+          await sleep(5000);
         }
         set((state) => {
           state.currentTask.status = 'success';
